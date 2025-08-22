@@ -1,7 +1,3 @@
-Perfeito. Eu analisei o código e já dá para montar um **README.md** claro e profissional para o projeto. O projeto é um **visualizador de busca em labirinto (BFS/DFS) com Pygame**, permitindo criar paredes, definir início/fim e visualizar o algoritmo rodando.
-
-Aqui está o README:
-
 ---
 
 # Maze Pathfinding Visualizer
