@@ -1,5 +1,3 @@
----
-
 # Maze Pathfinding Visualizer
 
 Este projeto é um **visualizador interativo de algoritmos de busca em labirintos** desenvolvido em **Python com Pygame**.
