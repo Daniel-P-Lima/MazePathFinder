@@ -138,7 +138,7 @@ def reinicia_busca():
     estado_exec = "parado"
 
 """
-    inicia a busca em profundidade - BFS 
+    inicia a busca em largura - BFS 
     verifica se o início ou destino são nulos, se sim não inicia
     reinicia a busca
     adiciona o inicio ao final da lista de fronteira 
