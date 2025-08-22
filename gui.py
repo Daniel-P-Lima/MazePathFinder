@@ -1,4 +1,4 @@
-import pygame
+import  pygame
 from collections import deque
 
 VAZIO=0
