@@ -1,4 +1,4 @@
-import  pygame
+import pygame
 from collections import deque
 
 VAZIO=0
@@ -28,6 +28,8 @@ estado_cor = {
     CAMINHO: GREEN
 }
 
+movimentos = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
 
 linhas, colunas, celula = 15, 15, 40
 largura, altura = colunas*celula, linhas*celula
@@ -43,17 +45,33 @@ inicio = None       # (linha,coluna)
 destino = None      # (linha,coluna)
 
 algoritmo = "BFS"
-estado_exec = "idle" # "idle" | "rodando" | "reconstruindo"
+estado_exec = "parado" # "parado" | "rodando" | "reconstruindo"
 fronteira = deque()
-parent = [[None for _ in range(colunas)] for _ in range(linhas)]
+pai = [[None for _ in range(colunas)] for _ in range(linhas)]
 cursor_backtrack = None
 
+
+"""
+    @:param linha - é a mouse_y // celula para encaixar na grid
+    @:param coluna - é a mouse_x // celula para encaixar na grid
+    verifica se está vazio, se está pinta como preto (PAREDE)
+    verifica se é parede, se é pinta como branco (VAZIO)
+"""
 def cria_parede(linha,coluna):
     if malha[linha][coluna] == VAZIO:
         malha[linha][coluna] = PAREDE
     elif malha[linha][coluna] == PAREDE:
         malha[linha][coluna] = VAZIO
-
+"""
+    @:param linha - é a mouse_y // celula para encaixar na grid
+    @:param coluna - é a mouse_x // celula para encaixar na grid
+    @:param atual - passado como início
+    verifica se a célula é uma parede, se sim não permite criar 
+    caso o atual seja o início, pinta como branco (VAZIO)
+    caso atual seja nem parede e nem início, cria como laranja (INÍCIO)
+    
+    @:return (linha, coluna) - retorna a linha e a coluna que o início tá localizado 
+"""
 def cria_inicio(linha,coluna, atual):
     if malha[linha][coluna] == PAREDE:
         return atual
@@ -64,6 +82,17 @@ def cria_inicio(linha,coluna, atual):
     malha[linha][coluna] = INICIO
     return (linha, coluna)
 
+
+"""
+    @:param linha - é a mouse_y // celula para encaixar na grid
+    @:param coluna - é a mouse_x // celula para encaixar na grid
+    @:param atual - passado como destino
+    verifica se a célula é uma parede, se sim não permite criar 
+    caso o atual seja o destino, pinta como branco (VAZIO)
+    caso o atual seja nem a parede e nem o destino, cria como vermelho (DESTINO)
+
+    @:return (linha, coluna) - retorna a linha e a coluna que o destino tá localizado 
+"""
 def cria_destino(linha,coluna, atual):
     if malha[linha][coluna] == PAREDE:
         return atual
@@ -74,6 +103,11 @@ def cria_destino(linha,coluna, atual):
     malha[linha][coluna] = DESTINO
     return (linha, coluna)
 
+"""
+    desenha o grid:
+    primeiro monta ele
+    coloca uma linha fina para demarcar os quadrados
+"""
 def desenhar():
     for linha in range(linhas):
         for coluna in range(colunas):
@@ -85,18 +119,31 @@ def desenhar():
     for coluna in range(colunas+1):
         x = coluna*celula
         pygame.draw.line(tela, GRID, (x,0), (x,altura), 1)
-
+"""
+    reinicia o estado da aplicação
+    verifica se tem (FRONTEIRA, VISITADO, CAMINHO) na malha, se sim transforma tudo em branco (VAZIO)
+    limpa a lista de fronteira
+    limpa a lista de pai
+    muda o estado para "parado"    
+"""
 def reinicia_busca():
-    global fronteira, parent, cursor_backtrack, estado_exec
+    global fronteira, pai, cursor_backtrack, estado_exec
     for linha in range(linhas):
         for coluna in range(colunas):
             if malha[linha][coluna] in (FRONTEIRA, VISITADO, CAMINHO):
                 malha[linha][coluna] = VAZIO
     fronteira = deque()
-    parent = [[None for _ in range(colunas)] for _ in range(linhas)]
+    pai = [[None for _ in range(colunas)] for _ in range(linhas)]
     cursor_backtrack = None
-    estado_exec = "idle"
+    estado_exec = "parado"
 
+"""
+    inicia a busca em profundidade - BFS 
+    verifica se o início ou destino são nulos, se sim não inicia
+    reinicia a busca
+    adiciona o inicio ao final da lista de fronteira 
+    muda o estado para rodando
+"""
 def inicia_bfs():
     global estado_exec
     if inicio is None or destino is None:
@@ -106,13 +153,18 @@ def inicia_bfs():
     fronteira.append(inicio)
     estado_exec = "rodando"
 
+"""
+    executa o algortimo de busca em profundidade - BFS 
+    remove o primeiro elemento da lista fronteira 
+    faz distâncias para os movimentos do agente
+"""
 def passo_bfs():
     global estado_exec, cursor_backtrack
     if estado_exec != "rodando":
         return
 
     if not fronteira:
-        estado_exec = "idle"
+        estado_exec = "parado"
         return
 
     linha, coluna = fronteira.popleft()
@@ -127,7 +179,7 @@ def passo_bfs():
     if malha[linha][coluna] not in (INICIO, DESTINO):
         malha[linha][coluna] = VISITADO
 
-    for distancia_linha, distancia_coluna in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+    for distancia_linha, distancia_coluna in movimentos:
         nova_linha, nova_coluna = linha + distancia_linha, coluna + distancia_coluna
 
         if not (0 <= nova_linha < linhas and 0 <= nova_coluna < colunas):
@@ -137,7 +189,7 @@ def passo_bfs():
             continue
             
         if malha[nova_linha][nova_coluna] == DESTINO:
-            parent[nova_linha][nova_coluna] = (linha, coluna)
+            pai[nova_linha][nova_coluna] = (linha, coluna)
             cursor_backtrack = (nova_linha, nova_coluna)
             estado_exec = "reconstruindo"
             return
@@ -146,11 +198,16 @@ def passo_bfs():
         if malha[nova_linha][nova_coluna] in (VISITADO, FRONTEIRA, INICIO):
             continue
 
-        parent[nova_linha][nova_coluna] = (linha, coluna)
+        pai[nova_linha][nova_coluna] = (linha, coluna)
         fronteira.append((nova_linha, nova_coluna))
         malha[nova_linha][nova_coluna] = FRONTEIRA
 
-def step_backtrack():
+"""
+    executa o caminho de volta para identificar o caminho
+    o proximo sempre será o pai da linha e coluna
+    para todos os vértices que não são INÍCIO E DESTINO adiciona no caminho
+"""
+def passo_backtrack():
     global estado_exec, cursor_backtrack
 
     if estado_exec != "reconstruindo":
@@ -159,16 +216,16 @@ def step_backtrack():
     linha, coluna = cursor_backtrack
 
     if (linha, coluna) == INICIO:
-        estado_exec = "idle"
+        estado_exec = "parado"
         return
 
-    proximo = parent[linha][coluna]
+    proximo = pai[linha][coluna]
 
     if malha[linha][coluna] not in (INICIO, DESTINO):
         malha[linha][coluna] = CAMINHO
 
     if proximo is None:
-        estado_exec = "idle"
+        estado_exec = "parado"
         return
 
     cursor_backtrack = proximo
@@ -182,55 +239,52 @@ while rodando:
 
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_p:
-                if estado_exec == "idle": modo = "parede"
+                if estado_exec == "parado": modo = "parede"
             elif event.key == pygame.K_s:
-                if estado_exec == "idle": modo = "inicio"
+                if estado_exec == "parado": modo = "inicio"
             elif event.key == pygame.K_g:
-                if estado_exec == "idle": modo = "destino"
+                if estado_exec == "parado": modo = "destino"
             elif event.key == pygame.K_b:
-                if estado_exec == "idle": inicia_bfs()
+                if estado_exec == "parado": inicia_bfs()
             elif event.key == pygame.K_r:
                 reinicia_busca()
             elif event.key == pygame.K_SPACE:
-                # pausa/retoma apenas quando já iniciado
                 if estado_exec == "rodando":
-                    estado_exec = "idle"
+                    estado_exec = "parado"
                 elif inicio and destino and (fronteira or cursor_backtrack):
                     estado_exec = "rodando"
 
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and estado_exec == "idle":
-            mx, my = event.pos
-            c = mx // celula
-            r = my // celula
-            if 0 <= r < linhas and 0 <= c < colunas:
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and estado_exec == "parado":
+            mouse_x, mouse_y = event.pos
+            coluna = mouse_x // celula
+            linha = mouse_y // celula
+            if 0 <= linha < linhas and 0 <= coluna < colunas:
                 if modo == "parede":
-                    if malha[r][c] not in (INICIO, DESTINO):
-                        cria_parede(r, c)
+                    if malha[linha][coluna] not in (INICIO, DESTINO):
+                        cria_parede(linha, coluna)
                 elif modo == "inicio":
-                    if malha[r][c] != DESTINO:
-                        inicio = cria_inicio(r, c, inicio)
+                    if malha[linha][coluna] != DESTINO:
+                        inicio = cria_inicio(linha, coluna, inicio)
                         modo = "parede"
                 elif modo == "destino":
-                    if malha[r][c] != INICIO:
-                        destino = cria_destino(r, c, destino)
+                    if malha[linha][coluna] != INICIO:
+                        destino = cria_destino(linha, coluna, destino)
                         modo = "parede"
 
-    # EXECUÇÃO: um passo por frame
     if estado_exec == "rodando":
         try:
             passo_bfs()
         except NotImplementedError:
-            # enquanto você não implementar, mantém parado
-            estado_exec = "idle"
+            estado_exec = "parado"
     elif estado_exec == "reconstruindo":
         try:
-            step_backtrack()
+            passo_backtrack()
         except NotImplementedError:
-            estado_exec = "idle"
+            estado_exec = "parado"
 
     tela.fill(WHITE)
     desenhar()
     pygame.display.flip()
-    clock.tick(30)
+    clock.tick(60)
 
 pygame.quit()
