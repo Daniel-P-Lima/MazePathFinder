@@ -36,7 +36,7 @@ largura, altura = colunas*celula, linhas*celula
 
 pygame.init()
 tela = pygame.display.set_mode((largura, altura))
-pygame.display.set_caption("Maze BFS Visualizer")
+pygame.display.set_caption("Maze BFS/DFS Visualizer")
 clock = pygame.time.Clock()
 
 malha = [[VAZIO for _ in range(colunas)] for _ in range(linhas)]
@@ -44,7 +44,7 @@ modo = "parede"     # "parede" | "inicio" | "destino"
 inicio = None       # (linha,coluna)
 destino = None      # (linha,coluna)
 
-algoritmo = "BFS"
+algoritmo = "DFS"
 estado_exec = "parado" # "parado" | "rodando" | "reconstruindo"
 fronteira = deque()
 pai = [[None for _ in range(colunas)] for _ in range(linhas)]
@@ -154,7 +154,7 @@ def inicia_bfs():
     estado_exec = "rodando"
 
 """
-    executa o algortimo de busca em profundidade - BFS 
+    executa o algortimo de busca em largura - BFS 
     remove o primeiro elemento da lista fronteira 
     faz distâncias para os movimentos do agente
 """
@@ -202,6 +202,71 @@ def passo_bfs():
         fronteira.append((nova_linha, nova_coluna))
         malha[nova_linha][nova_coluna] = FRONTEIRA
 
+
+"""
+    inicia a busca em profundidade - DFS 
+    verifica se o início ou destino são nulos, se sim não inicia
+    reinicia a busca
+    adiciona o inicio ao final da lista de fronteira 
+    muda o estado para rodando
+"""
+def inicia_dfs():
+    global estado_exec
+    if inicio is None or destino is None:
+        print("Defina INICIO (S) e DESTINO (G) antes de iniciar.")
+        return
+    reinicia_busca()
+    fronteira.append(inicio)
+    estado_exec = "rodando"
+
+"""
+    executa o algortimo de busca em profundidade - DFS 
+    remove o primeiro elemento da lista fronteira 
+    faz distâncias para os movimentos do agente
+"""
+def passo_dfs():
+    global estado_exec, cursor_backtrack
+    if estado_exec != "rodando":
+        return
+
+    if not fronteira:
+        estado_exec = "parado"
+        return
+
+    linha, coluna = fronteira.pop()
+    if malha[linha][coluna] == VISITADO:
+        return
+
+    if (linha, coluna) == destino or malha[linha][coluna] == DESTINO:
+        cursor_backtrack = (linha, coluna)
+        estado_exec = "reconstruindo"
+        return
+
+    if malha[linha][coluna] not in (INICIO, DESTINO):
+        malha[linha][coluna] = VISITADO
+
+    for distancia_linha, distancia_coluna in reversed(movimentos):
+        nova_linha, nova_coluna = linha + distancia_linha, coluna + distancia_coluna
+
+        if not (0 <= nova_linha < linhas and 0 <= nova_coluna < colunas):
+            continue
+
+        if malha[nova_linha][nova_coluna] == PAREDE:
+            continue
+
+        if malha[nova_linha][nova_coluna] == DESTINO:
+            pai[nova_linha][nova_coluna] = (linha, coluna)
+            cursor_backtrack = (nova_linha, nova_coluna)
+            estado_exec = "reconstruindo"
+            return
+
+        if malha[nova_linha][nova_coluna] in (VISITADO, FRONTEIRA, INICIO):
+            continue
+
+        pai[nova_linha][nova_coluna] = (linha, coluna)
+        fronteira.append((nova_linha, nova_coluna))
+        malha[nova_linha][nova_coluna] = FRONTEIRA
+
 """
     executa o caminho de volta para identificar o caminho
     o proximo sempre será o pai da linha e coluna
@@ -212,10 +277,13 @@ def passo_backtrack():
 
     if estado_exec != "reconstruindo":
         return
+    if cursor_backtrack is None:
+        estado_exec = "parado"
+        return
 
     linha, coluna = cursor_backtrack
 
-    if (linha, coluna) == INICIO:
+    if (linha, coluna) == inicio:
         estado_exec = "parado"
         return
 
@@ -245,7 +313,11 @@ while rodando:
             elif event.key == pygame.K_g:
                 if estado_exec == "parado": modo = "destino"
             elif event.key == pygame.K_b:
-                if estado_exec == "parado": inicia_bfs()
+                if estado_exec == "parado":
+                    if algoritmo == "BFS":
+                        inicia_bfs()
+                    else :
+                        inicia_dfs()
             elif event.key == pygame.K_r:
                 reinicia_busca()
             elif event.key == pygame.K_SPACE:
@@ -273,7 +345,10 @@ while rodando:
 
     if estado_exec == "rodando":
         try:
-            passo_bfs()
+            if algoritmo == "BFS":
+                passo_bfs()
+            else:
+                passo_dfs()
         except NotImplementedError:
             estado_exec = "parado"
     elif estado_exec == "reconstruindo":
